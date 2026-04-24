@@ -22,10 +22,11 @@
     <DeployExtension>true</DeployExtension>
     <RootNamespace>VSFilterText</RootNamespace>
     <AssemblyName>VSFilterText</AssemblyName>
-    <!-- We don't ship project or item templates, so skip createTemplateManifests.
-         Without this, the VSSDK task fails with VSSDK1202: TemplateOutputDirectory missing. -->
-    <CreateTemplateManifests>false</CreateTemplateManifests>
-    <TemplateOutputDirectory>$(OutputPath)</TemplateOutputDirectory>
+    <!-- GenerateTemplatesManifest always runs even without templates and requires
+         TemplateOutputDirectory to be non-empty (fails with VSSDK1202 otherwise).
+         $(OutputPath) isn't resolved yet at load-time of this PropertyGroup, so
+         use $(MSBuildProjectDirectory) which is always defined. -->
+    <TemplateOutputDirectory>$(MSBuildProjectDirectory)\obj\Templates\</TemplateOutputDirectory>
   </PropertyGroup>
 
   <!-- F5 launches Visual Studio under the Experimental hive so the extension loads in
@@ -90,5 +91,12 @@
   <Target Name="_BuildVsixContainerAfterBuild"
           AfterTargets="Build"
           DependsOnTargets="CreateVsixContainer;DeployVsixExtensionFiles" />
+
+  <!-- GenerateTemplatesManifest (in Microsoft.VsSDK.targets) unconditionally invokes
+       VsixUtil createTemplateManifests, which fails unless the TemplateOutputDirectory
+       exists. Create it just before the VSSDK target runs. -->
+  <Target Name="_EnsureTemplateOutputDirectory" BeforeTargets="GenerateTemplatesManifest">
+    <MakeDir Directories="$(TemplateOutputDirectory)" />
+  </Target>
 
 </Project>
