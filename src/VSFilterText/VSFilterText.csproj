@@ -33,12 +33,13 @@
     <StartArguments>/rootsuffix Exp</StartArguments>
   </PropertyGroup>
 
-  <!-- Floating 18.* picks up the latest VS 18-targeted package at restore time.
-       If the floating range doesn't resolve, pin to a concrete 18.x version reported
-       by `nuget list Microsoft.VSSDK.BuildTools -AllVersions`. -->
+  <!-- Microsoft ships the VSSDK under 17.x package IDs even for VS 18 support; there
+       is no 18.* package on NuGet. 17.14.* is the current stable range and knows how
+       to deploy VSIXes to VS 18 (the older 17.10 line did not produce a .vsix when
+       invoked from VS 18). -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.*" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="18.*" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.*" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.*" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>
