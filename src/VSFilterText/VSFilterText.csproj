@@ -76,4 +76,15 @@
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets"
           Condition="'$(VSToolsPath)' != '' and Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
 
+  <!-- Microsoft.VsSDK.targets only wires CreateVsixContainer into PrepareForRunDependsOn
+       (triggered by F5 / Run), not into Build. Extend BuildDependsOn so a plain Build /
+       Rebuild actually produces the .vsix and deploys it to the Experimental hive. -->
+  <PropertyGroup>
+    <BuildDependsOn>
+      $(BuildDependsOn);
+      CreateVsixContainer;
+      DeployVsixExtensionFiles
+    </BuildDependsOn>
+  </PropertyGroup>
+
 </Project>
