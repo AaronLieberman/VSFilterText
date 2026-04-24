@@ -34,13 +34,10 @@ internal sealed class FilterDocument : IDisposable
         _state = new FilterState();
 
         // Initial seed: keep every source span. Subsequent Apply() calls will elide/expand.
-        // NEEDS VERIFICATION: CreateElisionBuffer overload. The signature that takes
-        // (IProjectionEditResolver, NormalizedSnapshotSpanCollection, ElisionBufferOptions) is the
-        // canonical one; alternate overloads exist on some VSSDK versions.
         var wholeSource = new SnapshotSpan(sourceBuffer.CurrentSnapshot, 0, sourceBuffer.CurrentSnapshot.Length);
         _elisionBuffer = projectionFactory.CreateElisionBuffer(
             projectionEditResolver: null,
-            sourceSpans: new NormalizedSnapshotSpanCollection(wholeSource),
+            exposedSpans: new NormalizedSnapshotSpanCollection(wholeSource),
             options: ElisionBufferOptions.None);
 
         // Read-only region covering the entire elision buffer. Belt-and-suspenders alongside the

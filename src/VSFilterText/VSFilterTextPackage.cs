@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.VisualStudio.Shell;
@@ -46,9 +47,10 @@ public sealed class VSFilterTextPackage : AsyncPackage
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && _lifetime is not null)
         {
-            _lifetime?.Dispose();
+            ThreadHelper.ThrowIfNotOnUIThread();
+            _lifetime.Dispose();
             _lifetime = null;
         }
         base.Dispose(disposing);

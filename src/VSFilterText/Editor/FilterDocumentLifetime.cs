@@ -17,7 +17,8 @@ internal sealed class FilterDocumentLifetime : IVsRunningDocTableEvents, IDispos
 {
     private readonly IVsRunningDocumentTable _rdt;
     private readonly Dictionary<string, uint> _filterCookiesBySource = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<uint, string> _sourceByFilterCookie = new();
+    private readonly Dictionary<uint, string> _sourceBySelfCookie = new();
+    private readonly Dictionary<uint, IVsWindowFrame> _framesByCookie = new();
     private readonly uint _eventsCookie;
     private bool _disposed;
 
@@ -38,7 +39,16 @@ internal sealed class FilterDocumentLifetime : IVsRunningDocTableEvents, IDispos
             && FilterEditorFactory.TryParseMoniker(moniker, out var sourceMoniker))
         {
             _filterCookiesBySource[sourceMoniker] = docCookie;
-            _sourceByFilterCookie[docCookie] = sourceMoniker;
+            _sourceBySelfCookie[docCookie] = sourceMoniker;
+        }
+        return VSConstants.S_OK;
+    }
+
+    public int OnBeforeDocumentWindowShow(uint docCookie, int fFirstShow, IVsWindowFrame pFrame)
+    {
+        if (pFrame is not null && _sourceBySelfCookie.ContainsKey(docCookie))
+        {
+            _framesByCookie[docCookie] = pFrame;
         }
         return VSConstants.S_OK;
     }
@@ -50,10 +60,11 @@ internal sealed class FilterDocumentLifetime : IVsRunningDocTableEvents, IDispos
         if (dwReadLocksRemaining + dwEditLocksRemaining != 0) return VSConstants.S_OK;
 
         // Our own filter doc is being closed → drop tracking.
-        if (_sourceByFilterCookie.TryGetValue(docCookie, out var sourceMoniker))
+        if (_sourceBySelfCookie.TryGetValue(docCookie, out var sourceMoniker))
         {
-            _sourceByFilterCookie.Remove(docCookie);
+            _sourceBySelfCookie.Remove(docCookie);
             _filterCookiesBySource.Remove(sourceMoniker);
+            _framesByCookie.Remove(docCookie);
             return VSConstants.S_OK;
         }
 
@@ -61,15 +72,16 @@ internal sealed class FilterDocumentLifetime : IVsRunningDocTableEvents, IDispos
         var hr = _rdt.GetDocumentInfo(
             docCookie, out _, out _, out _,
             out var closingMoniker, out _, out _, out _);
-        if (ErrorHandler.Succeeded(hr) && _filterCookiesBySource.TryGetValue(closingMoniker, out var filterCookie))
+        if (ErrorHandler.Succeeded(hr)
+            && _filterCookiesBySource.TryGetValue(closingMoniker, out var filterCookie)
+            && _framesByCookie.TryGetValue(filterCookie, out var filterFrame))
         {
-            _rdt.CloseDocuments((uint)__VSRDTSAVEOPTIONS.RDTSAVEOPT_NoSave, null, filterCookie);
+            filterFrame.CloseFrame((uint)__FRAMECLOSE.FRAMECLOSE_NoSave);
         }
         return VSConstants.S_OK;
     }
 
     public int OnAfterDocumentWindowHide(uint docCookie, IVsWindowFrame pFrame) => VSConstants.S_OK;
-    public int OnBeforeDocumentWindowShow(uint docCookie, int fFirstShow, IVsWindowFrame pFrame) => VSConstants.S_OK;
     public int OnAfterAttributeChange(uint docCookie, uint grfAttribs) => VSConstants.S_OK;
     public int OnAfterSave(uint docCookie) => VSConstants.S_OK;
 

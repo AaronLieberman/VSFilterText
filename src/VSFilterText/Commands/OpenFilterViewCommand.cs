@@ -48,8 +48,9 @@ internal sealed class OpenFilterViewCommand
 
         // OpenSpecificEditor focuses the existing frame when the moniker is already open;
         // otherwise it dispatches to our FilterEditorFactory to create a new one.
+        // Passing 0 for grfOpenSpecific is the default "open/create" behaviour.
         var hr = openDoc.OpenSpecificEditor(
-            (uint)__VSOSPFLAGS.OSP_OpenDocument,
+            0,
             filterMoniker,
             ref editorFactoryGuid,
             null,

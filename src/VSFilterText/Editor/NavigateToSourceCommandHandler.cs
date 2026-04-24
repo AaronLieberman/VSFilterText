@@ -28,7 +28,12 @@ internal sealed class NavigateToSourceCommandHandler : IWpfTextViewCreationListe
 {
     public void TextViewCreated(IWpfTextView textView)
     {
-        textView.VisualElement.PreviewMouseDoubleClick += (_, e) => OnDoubleClick(textView, e);
+        // VisualElement is a FrameworkElement, which doesn't expose MouseDoubleClick.
+        // Detect double-click via ClickCount on the preview mouse-down event.
+        textView.VisualElement.PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ClickCount == 2) OnDoubleClick(textView, e);
+        };
     }
 
     private static void OnDoubleClick(IWpfTextView view, MouseButtonEventArgs e)
