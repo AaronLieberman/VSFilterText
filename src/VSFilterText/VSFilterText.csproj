@@ -77,14 +77,14 @@
           Condition="'$(VSToolsPath)' != '' and Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
 
   <!-- Microsoft.VsSDK.targets only wires CreateVsixContainer into PrepareForRunDependsOn
-       (triggered by F5 / Run), not into Build. Extend BuildDependsOn so a plain Build /
-       Rebuild actually produces the .vsix and deploys it to the Experimental hive. -->
-  <PropertyGroup>
-    <BuildDependsOn>
-      $(BuildDependsOn);
-      CreateVsixContainer;
-      DeployVsixExtensionFiles
-    </BuildDependsOn>
-  </PropertyGroup>
+       (triggered by F5 / Run), not into Build. Setting BuildDependsOn directly here
+       doesn't work because Microsoft.Common.CurrentVersion.targets — imported late by
+       the implicit Sdk.targets at the bottom of the project — resets BuildDependsOn
+       after our override. Defining a fresh target with AfterTargets="Build" dodges
+       the ordering problem: AfterTargets is late-bound, and MSBuild resolves
+       DependsOnTargets at invocation time. -->
+  <Target Name="_BuildVsixContainerAfterBuild"
+          AfterTargets="Build"
+          DependsOnTargets="CreateVsixContainer;DeployVsixExtensionFiles" />
 
 </Project>
