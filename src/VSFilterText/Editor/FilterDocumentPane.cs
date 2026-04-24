@@ -37,7 +37,7 @@ internal sealed class FilterDocumentPane : IVsWindowPane, IVsPersistDocData, IDi
 
     // ---- IVsWindowPane ----
 
-    public int SetSite(IServiceProvider psp) => VSConstants.S_OK;
+    public int SetSite(Microsoft.VisualStudio.OLE.Interop.IServiceProvider psp) => VSConstants.S_OK;
 
     public int CreatePaneWindow(IntPtr hwndParent, int x, int y, int cx, int cy, out IntPtr hwnd)
     {
