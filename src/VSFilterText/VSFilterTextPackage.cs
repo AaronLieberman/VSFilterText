@@ -47,10 +47,10 @@ public sealed class VSFilterTextPackage : AsyncPackage
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _lifetime is not null)
+        if (disposing)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            _lifetime.Dispose();
+            _lifetime?.Dispose();
             _lifetime = null;
         }
         base.Dispose(disposing);

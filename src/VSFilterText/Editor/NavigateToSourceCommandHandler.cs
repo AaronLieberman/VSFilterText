@@ -29,9 +29,12 @@ internal sealed class NavigateToSourceCommandHandler : IWpfTextViewCreationListe
     public void TextViewCreated(IWpfTextView textView)
     {
         // VisualElement is a FrameworkElement, which doesn't expose MouseDoubleClick.
-        // Detect double-click via ClickCount on the preview mouse-down event.
+        // Detect double-click via ClickCount on the preview mouse-down event. WPF mouse
+        // handlers always run on the UI thread, but the analyzer doesn't track that
+        // across call sites — assert explicitly.
         textView.VisualElement.PreviewMouseLeftButtonDown += (_, e) =>
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (e.ClickCount == 2) OnDoubleClick(textView, e);
         };
     }
