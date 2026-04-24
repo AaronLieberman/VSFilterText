@@ -22,6 +22,10 @@
     <DeployExtension>true</DeployExtension>
     <RootNamespace>VSFilterText</RootNamespace>
     <AssemblyName>VSFilterText</AssemblyName>
+    <!-- We don't ship project or item templates, so skip createTemplateManifests.
+         Without this, the VSSDK task fails with VSSDK1202: TemplateOutputDirectory missing. -->
+    <CreateTemplateManifests>false</CreateTemplateManifests>
+    <TemplateOutputDirectory>$(OutputPath)</TemplateOutputDirectory>
   </PropertyGroup>
 
   <!-- F5 launches Visual Studio under the Experimental hive so the extension loads in
