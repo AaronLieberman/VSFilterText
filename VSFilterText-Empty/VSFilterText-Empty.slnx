@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="VSFilterText-Empty.csproj">
+    <Deploy />
+  </Project>
+</Solution>
