@@ -18,6 +18,7 @@ namespace VSFilterText.Editor;
 internal sealed class FilterDocumentPane : IVsWindowPane, IVsPersistDocData, IDisposable
 {
     private readonly FilterDocument _document;
+    private System.Windows.Interop.HwndSource? _hwndSource;
     private IntPtr _hwnd = IntPtr.Zero;
     private bool _disposed;
 
@@ -52,8 +53,8 @@ internal sealed class FilterDocumentPane : IVsWindowPane, IVsPersistDocData, IDi
             ParentWindow = hwndParent,
             WindowStyle = unchecked((int)0x40000000 /*WS_CHILD*/ | 0x10000000 /*WS_VISIBLE*/ | 0x02000000 /*WS_CLIPCHILDREN*/)
         };
-        var source = new System.Windows.Interop.HwndSource(parameters) { RootVisual = host };
-        _hwnd = source.Handle;
+        _hwndSource = new System.Windows.Interop.HwndSource(parameters) { RootVisual = host };
+        _hwnd = _hwndSource.Handle;
         hwnd = _hwnd;
         return VSConstants.S_OK;
     }
@@ -129,6 +130,8 @@ internal sealed class FilterDocumentPane : IVsWindowPane, IVsPersistDocData, IDi
     {
         if (_disposed) return;
         _disposed = true;
+        _hwndSource?.Dispose();
+        _hwndSource = null;
         _document.Dispose();
     }
 

@@ -40,14 +40,6 @@ internal sealed class FilterDocument : IDisposable
             exposedSpans: new NormalizedSnapshotSpanCollection(wholeSource),
             options: ElisionBufferOptions.None);
 
-        // Read-only region covering the entire elision buffer. Belt-and-suspenders alongside the
-        // view-role–based read-only-ness.
-        using (var edit = _elisionBuffer.CreateReadOnlyRegionEdit())
-        {
-            edit.CreateReadOnlyRegion(new Span(0, _elisionBuffer.CurrentSnapshot.Length));
-            edit.Apply();
-        }
-
         var roles = editorFactory.CreateTextViewRoleSet(
             PredefinedTextViewRoles.Analyzable,
             PredefinedTextViewRoles.Zoomable,
