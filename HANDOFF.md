@@ -91,21 +91,11 @@ Source ITextBuffer (untouched)
 
 ---
 
-## Build pipeline (the part that took the longest)
+## Build pipeline
 
-VSIX packaging on a modern SDK-style csproj has three foot-guns we hit:
+Use `Microsoft.VSSDK.BuildTools 18.5.*` with `VSSDKBuildToolsAutoSetup=true`. This is the VS 2026-era package and it auto-imports `Microsoft.VsSDK.targets` and wires `CreateVsixContainer` into the build. No manual `<Import>` or custom AfterBuild targets are needed.
 
-1. **`Microsoft.VSSDK.BuildTools` only auto-imports a stub** that sets `$(VSToolsPath)` and an env-var target. The real VSIX targets (`CreateVsixContainer`, `GeneratePkgDef`, `VSCTCompile`, etc.) live in `tools\VSSDK\Microsoft.VsSDK.targets` inside the package and **must be imported explicitly**. Without this MSBuild prints "targets do not exist in the project, and will be ignored" and produces no `.vsix`.
-
-2. **`CreateVsixContainer` is wired into `PrepareForRunDependsOn`, not `BuildDependsOn`.** Setting `BuildDependsOn` directly is clobbered by `Microsoft.Common.CurrentVersion.targets` (imported late by the implicit Sdk.targets). Fix: a fresh target with `AfterTargets="Build"` and `DependsOnTargets="CreateVsixContainer;DeployVsixExtensionFiles"` — `AfterTargets` is late-bound, MSBuild resolves `DependsOnTargets` at invocation time.
-
-3. **`GenerateTemplatesManifest` runs unconditionally** even with no templates, and fails with **VSSDK1202** unless `TemplateOutputDirectory` is non-empty AND the directory exists. Setting it to `$(OutputPath)` doesn't work (not yet resolved at top-PropertyGroup eval time). Fix: hard-coded path `$(MSBuildProjectDirectory)\obj\Templates\` plus a `BeforeTargets="GenerateTemplatesManifest"` target that `MakeDir`s it.
-
-4. **NuGet does not ship 18.* packages.** `Microsoft.VSSDK.BuildTools` and `Microsoft.VisualStudio.SDK` only exist on the 17.x line; **17.14.\*** is the current stable range and knows how to deploy VSIXes to VS 18. The earlier 17.10 line did **not** produce a `.vsix` when invoked from VS 18 — explicitly use `17.14.*`.
-
-5. **`source.extension.vsixmanifest` `InstallationTarget`** must be `[18.0,19.0)` for VS 2026. We initially had `[17.0,18.0)`, which excluded VS 18 and prevented installation.
-
-All five fixes are committed.
+Earlier sessions used `17.14.*` (VS 2022-era) and required a large set of workaround targets. All of that is gone. See `BUILD.md` for build instructions.
 
 ---
 
@@ -118,30 +108,16 @@ These landed in commit `d8f00ef` on top of `e96a84b`.
 
 ---
 
-## Outstanding verification (open thread)
+## Build status
 
-Before the previous session ended, the user had not yet confirmed that commit `e96a84b` (TemplateOutputDirectory fix for VSSDK1202) actually produces a `.vsix`. **This is the next thing to verify.**
+**VSIX builds cleanly.** `bin\Debug\net472\VSFilterText.vsix` is produced by a plain `msbuild /t:Rebuild`. See `BUILD.md`.
 
-User to run on Windows:
+Contents: `VSFilterText.dll`, `VSFilterText.pkgdef`, `extension.vsixmanifest`, standard VSIX boilerplate.
 
-```powershell
-git pull
-msbuild src\VSFilterText\VSFilterText.csproj /t:Rebuild /v:minimal
-dir src\VSFilterText\bin\Debug\net472\*.vsix
-```
+## Next: smoke test in VS 2026 Experimental Instance
 
-Expected: `VSFilterText.vsix` appears in `bin\Debug\net472\`.
+Install via F5 from VS 2026 (or double-click the `.vsix`), then:
 
-**If VSSDK1202 still appears:**
-- Dump the full error line.
-- Check `obj\Templates\` is being created before the target runs (the `_EnsureTemplateOutputDirectory` target should do this).
-- As a fallback, investigate `$(GenerateTemplatesManifestDependsOn)` and whether there's a property that can disable the target entirely when no templates are present in the project.
-
-**If the `.vsix` is produced but doesn't install / doesn't show in Manage Extensions:**
-- Confirm the deployment is going to the Experimental hive (`%LOCALAPPDATA%\Microsoft\VisualStudio\18.0_<hash>Exp`).
-- Check VS Activity Log under that hive for editor-factory registration errors.
-
-**Once installed, manual smoke checks** (in the Experimental Instance):
 1. Open any text file.
 2. `Ctrl+Alt+F` → filter tab opens with `<filename> [Filtered]` and focused query textbox.
 3. Type a substring → non-matching lines hide; match count updates.
@@ -151,6 +127,8 @@ Expected: `VSFilterText.vsix` appears in `bin\Debug\net472\`.
 7. Re-press `Ctrl+Alt+F` on a source that has a filter → focuses the existing filter (no duplicate).
 8. Save All / Ctrl+S → filter tab does not appear dirty and does not prompt.
 9. Two source docs → two independent filter docs.
+
+If the extension doesn't load, check `%LOCALAPPDATA%\Microsoft\VisualStudio\18.0_<hash>Exp\ActivityLog.xml` for editor-factory registration errors.
 
 ---
 
@@ -181,23 +159,10 @@ A VSIX project is a class library and won't run directly. The csproj has:
 
 ---
 
-## Git state at handoff
-
-- Branch: `claude/vs-extension-scaffold-iNHtC` (pushed)
-- Latest commits (newest first):
-  - `d8f00ef` — Fix HwndSource leak; drop read-only region that conflicted with elision edits
-  - `e96a84b` — Fix TemplateOutputDirectory: use absolute path and create it
-  - `aed9ee2` — Skip template manifest generation (superseded)
-  - `3e595e4` — Wire VSIX via an AfterBuild target, not BuildDependsOn
-  - `eb2000e` — Wire CreateVsixContainer into BuildDependsOn (superseded)
-  - `051e5f0` — Import Microsoft.VsSDK.targets to define VSIX targets
-
----
-
 ## Quick re-orientation for the next session
 
 1. Read this file.
-2. Read `src/VSFilterText/VSFilterText.csproj` — long inline comments explain every non-obvious property and target.
-3. Read `src/VSFilterText/source.extension.vsixmanifest` — confirms `[18.0,19.0)` installation target.
-4. Skim `Editor/FilterDocument.cs`, `Editor/FilterEditorFactory.cs`, `Filter/FilterEngine.cs` — the three pieces most likely to need debugging.
-5. Ask the user the result of the `msbuild ... /t:Rebuild` + `dir ...*.vsix` check, since that's the open thread.
+2. Read `BUILD.md` for how to build.
+3. Read `src/VSFilterText/VSFilterText.csproj` — now clean and simple.
+4. Read `src/VSFilterText/source.extension.vsixmanifest` — confirms `[18.0,19.0)` installation target.
+5. Skim `Editor/FilterDocument.cs`, `Editor/FilterEditorFactory.cs`, `Filter/FilterEngine.cs` — the three pieces most likely to need debugging once the smoke test runs.

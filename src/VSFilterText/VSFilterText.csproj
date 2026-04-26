@@ -1,49 +1,41 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    Classic VSSDK VSIX project targeting Visual Studio 17.x.
-    Uses the modern SDK-style csproj with Microsoft.VSSDK.BuildTools providing VSIX packaging.
-    NEEDS VERIFICATION: exact package versions against the VS 17.x that will build this.
-  -->
-
   <PropertyGroup>
     <ProjectGuid>{B3C3A2E4-7F1D-4D3A-9A1A-5E4F1A2B3C4D}</ProjectGuid>
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <RootNamespace>VSFilterText</RootNamespace>
+    <AssemblyName>VSFilterText</AssemblyName>
+
+    <!-- VSIX packaging — VSSDKBuildToolsAutoSetup auto-imports Microsoft.VsSDK.targets from
+         the BuildTools package and wires CreateVsixContainer into the build. No manual Import
+         or custom AfterBuild targets needed. -->
+    <VSSDKBuildToolsAutoSetup>true</VSSDKBuildToolsAutoSetup>
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
     <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
     <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
     <IncludeDebugSymbolsInLocalVSIXDeployment>true</IncludeDebugSymbolsInLocalVSIXDeployment>
-    <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
-    <CopyOutputSymbolsToOutputDirectory>true</CopyOutputSymbolsToOutputDirectory>
-    <CreateVsixContainer>true</CreateVsixContainer>
-    <DeployExtension>true</DeployExtension>
-    <RootNamespace>VSFilterText</RootNamespace>
-    <AssemblyName>VSFilterText</AssemblyName>
-    <!-- GenerateTemplatesManifest always runs even without templates and requires
-         TemplateOutputDirectory to be non-empty (fails with VSSDK1202 otherwise).
-         $(OutputPath) isn't resolved yet at load-time of this PropertyGroup, so
-         use $(MSBuildProjectDirectory) which is always defined. -->
-    <TemplateOutputDirectory>$(MSBuildProjectDirectory)\obj\Templates\</TemplateOutputDirectory>
   </PropertyGroup>
 
-  <!-- F5 launches Visual Studio under the Experimental hive so the extension loads in
-       isolation from the main VS install. $(DevEnvDir) is set by MSBuild when building
-       inside VS and points at the running devenv.exe. -->
+  <!-- F5 launches devenv under the Experimental hive. $(DevEnvDir) is set by MSBuild when
+       building inside VS and points at the running devenv.exe. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <StartAction>Program</StartAction>
     <StartProgram>$(DevEnvDir)devenv.exe</StartProgram>
     <StartArguments>/rootsuffix Exp</StartArguments>
   </PropertyGroup>
 
-  <!-- Microsoft ships the VSSDK under 17.x package IDs even for VS 18 support; there
-       is no 18.* package on NuGet. 17.14.* is the current stable range and knows how
-       to deploy VSIXes to VS 18 (the older 17.10 line did not produce a .vsix when
-       invoked from VS 18). -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.*" PrivateAssets="all" />
+    <!-- Tells the VS project system this is a VSIX project (enables VSIX-specific UI). -->
+    <ProjectCapability Include="CreateVsixContainer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 18.5.x build tools ship with VS 2026 and handle auto-setup correctly. -->
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.*" PrivateAssets="all" />
+    <!-- VS SDK API assemblies; 17.14.x is still the current stable API surface for VS 18. -->
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.*" ExcludeAssets="runtime" />
   </ItemGroup>
 
@@ -70,33 +62,5 @@
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
-
-  <!-- The Microsoft.VSSDK.BuildTools NuGet package only auto-imports a stub that sets
-       $(VSToolsPath) and defines a single environment-variable target. The real VSIX-
-       building targets (CreateVsixContainer, GeneratePkgDef, VSCTCompile,
-       VSIXNameProjectOutputGroup) live in tools\VSSDK\Microsoft.VsSDK.targets inside
-       the package and must be imported explicitly. Without this, MSBuild warns that
-       these targets "do not exist in the project, and will be ignored" and no .vsix
-       container is produced. -->
-  <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets"
-          Condition="'$(VSToolsPath)' != '' and Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
-
-  <!-- Microsoft.VsSDK.targets only wires CreateVsixContainer into PrepareForRunDependsOn
-       (triggered by F5 / Run), not into Build. Setting BuildDependsOn directly here
-       doesn't work because Microsoft.Common.CurrentVersion.targets — imported late by
-       the implicit Sdk.targets at the bottom of the project — resets BuildDependsOn
-       after our override. Defining a fresh target with AfterTargets="Build" dodges
-       the ordering problem: AfterTargets is late-bound, and MSBuild resolves
-       DependsOnTargets at invocation time. -->
-  <Target Name="_BuildVsixContainerAfterBuild"
-          AfterTargets="Build"
-          DependsOnTargets="CreateVsixContainer;DeployVsixExtensionFiles" />
-
-  <!-- GenerateTemplatesManifest (in Microsoft.VsSDK.targets) unconditionally invokes
-       VsixUtil createTemplateManifests, which fails unless the TemplateOutputDirectory
-       exists. Create it just before the VSSDK target runs. -->
-  <Target Name="_EnsureTemplateOutputDirectory" BeforeTargets="GenerateTemplatesManifest">
-    <MakeDir Directories="$(TemplateOutputDirectory)" />
-  </Target>
 
 </Project>
