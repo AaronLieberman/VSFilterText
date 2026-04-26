@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(msbuild src/VSFilterText/VSFilterText.csproj /t:Rebuild /v:minimal)",
+      "PowerShell(msbuild *)",
+      "PowerShell(& \"${env:ProgramFiles\\(x86\\)}\\\\Microsoft Visual Studio\\\\Installer\\\\vswhere.exe\" -all -format json 2>&1 | Select-Object -First 80)",
+      "Bash(git commit *)"
+    ]
+  }
+}
